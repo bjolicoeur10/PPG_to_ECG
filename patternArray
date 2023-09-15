@@ -1,0 +1,16 @@
+function patternArray = createPatternArray(result, originalArray)
+    patternArray = zeros(1, length(originalArray));
+    prev_max_index = 1;
+
+    for i = 1:size(result, 1)
+        max_value = result(i, 1);
+        max_index = result(i, 2);
+       
+        for j = prev_max_index:max_index
+            patternArray(j) = 200 + (j - prev_max_index) / (max_index - prev_max_index) * (max_value - 200);
+        end
+        
+        prev_max_index = max_index + 1;
+    end
+    testpa = patternArray;
+end
