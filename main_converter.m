@@ -2,18 +2,18 @@ clear
 clc
 close all
 format long
-
 ppg_name = 'PPGData_pcvipr_0908202315_51_55_913'
 ppg_trig_name = 'PPGTrig_pcvipr_0908202315_51_55_913'
 ppg_dt = 10e-3; % 10ms sampling time on ppg
 
-gating_name = 'Gating_Track_154541551.pcvipr_track.full'
-
+gating_name = 'Gating_Track_154541551.pcvipr_track.full';
+%gating_name = 'modifiedgatingfiel.full';
+out_gating_name = 'modifiedgatingfiel.full';
 %7688
 % load data
 g_tr = 7688e-6 - 3e-6; % tr from  pfile_info ScanArchive_*.h5 print | grep -a imagehead.tr=
 g = load_gating(gating_name);
-
+g_time_old = g.time;
 g.time = (0:numel(g.time)-1)*g_tr;
 %g.time = g.time * 0.9994657
 
@@ -22,12 +22,20 @@ disdaq_time = 1;
 effective_tr = 4*g_tr;
 pr_disdaqs = 1 + round(disdaq_time / effective_tr);
 
-
 % 30s time, 1s disdaq
 ppg_vals = textread(ppg_name);
 ppg_time = (0:numel(ppg_vals)-1)*ppg_dt - 30 - pr_disdaqs*effective_tr;
 ppg_trigger = textread(ppg_trig_name);
 % check plot
+figure
+hold on
+plot(g.time,g.ecg)
+plot(ppg_time,ppg_vals)
+hold off
+
+
+
+
 figure
 yyaxis left
 plot(g.time, g.ecg)
@@ -48,6 +56,9 @@ hold on
 plot(ppg_time(ppg_trigger), ppg_vals(ppg_trigger),'*')
 xlim([max(g.time)-10 max(g.time)])
 title('End of scan')
+
+%figure:
+
 
 % Find index greater than zero 
 idx_zero = find(ppg_time>0, 1, 'First')
@@ -78,84 +89,61 @@ threshold = 685;
 result = findHighestLocalMaxima(arr, threshold);
 patternArray = createPatternArray(result, arr);
 % 
-% temppa = patternArray;
-% for v = 1:numel(temppa)
-%     if temppa(v) < 200
-%         temppa(v) = 200;
-%     end
-% end
-% tt = 1:numel(temppa);
-% tt = tt * 10e-3;
-% figure
-% hold on
-% plot(tt,patternArray)
-% plot(ppg_time,ppg_vals)
-% hold off
-% % figure
-% % plot(1:numel(g.ecg),g.ecg)
-
-
-
-function highestLocalMaxima = findHighestLocalMaxima(arr, threshold)
-    highestLocalMaxima = [];  
-
-    max_value = -Inf;  
-
-    for i = 1:length(arr)
-        if arr(i) >= threshold
-  
-            if arr(i) > max_value
-                max_value = arr(i);
-                max_index = i;
-            end
-        elseif max_value > -Inf
-            highestLocalMaxima = [highestLocalMaxima; max_value, max_index];
-            max_value = -Inf;  
-        end
+temppa = patternArray;
+for v = 1:numel(temppa)
+    if temppa(v) < 200
+        temppa(v) = 200;
     end
 end
+tt = 1:numel(temppa);
+tt = tt * 10e-3;
+figure
+hold on
+plot(tt,patternArray)
+plot(ppg_time,ppg_vals)
+hold off
+% figure
+% plot(1:numel(g.ecg),g.ecg)
 
-function patternArray = createPatternArray(result, originalArray)
-    patternArray = zeros(1, length(originalArray));
-    prev_max_index = 1;
 
-    for i = 1:size(result, 1)
-        max_value = result(i, 1);
-        max_index = result(i, 2);
-       
-        for j = prev_max_index:max_index
-            patternArray(j) = 200 + (j - prev_max_index) / (max_index - prev_max_index) * (max_value - 200);
-        end
-        
-        prev_max_index = max_index + 1;
+
+
+
+for v = 1:numel(temppa)
+    if temppa(v) < 200
+        temppa(v) = 200;
     end
 end
+tt = 1:numel(temppa);
+tt = tt * 10e-3;
+figure
+hold on
+% 
+plot(ppg_time,patternArray)
+plot(ppg_time,ppg_vals)
+plot(g.time,g.ecg)
+xlim([50 70])
+hold off
+d1 = patternArray * 0.000000001;
+d2 = ones(1, numel(patternArray)) * 1234;;
+d3 = tt * 10e6;
+d4 = ones(1,numel(patternArray));
+dsf = numel(g.acq) / numel(patternArray);
+ind = round(linspace(1,numel(g.acq),numel(patternArray)));
+sm = g.acq(ind);
+d5 = sm' ;
+raw2 = [d1,d2,d3,d4,d5]';
 
-patternArray
-% 
-% temppa = patternArray;
-% for v = 1:numel(temppa)
-%     if temppa(v) < 200
-%         temppa(v) = 200;
-%     end
-% end
-% tt = 1:numel(temppa);
-% tt = tt * 10e-3;
-% figure
-% hold on
-% 
-% plot(ppg_time,patternArray)
-% plot(ppg_time,ppg_vals)
-% plot(g.time,g.ecg)
-% xlim([50 70])
-% hold off
+fid = fopen(out_gating_name, 'wb');
+fwrite(fid, raw2, 'int32', 'l');
+fclose(fid);
+fid = fopen(out_gating_name, 'rb');
+raw3 = fread(fid, inf, 'int32', 'l');
+fclose(fid);
 
-% test = [0 0 1];
-% fid =fopen(gating_name,'wb');
-% fwrite(fid,test,'int32')
-% 
-% fclose(fid)
-%  
-% fid = fopen(gating_name,'r+')
-% 
-% raw = fread(fid,'int32')
+
+
+   fid = fopen(gating_name);
+    raw = fread(fid,'int32','b');
+    fclose(fid);
+
