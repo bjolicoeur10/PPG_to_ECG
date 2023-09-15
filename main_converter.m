@@ -79,7 +79,7 @@ tdelay = fit.Coefficients.Estimate(1)
 
 
 arr = ppg_vals;
-threshold = 685;
+threshold = 450;
 result = findHighestLocalMaxima(arr, threshold);
 patternArray = createPatternArray(result, arr);
 % 
@@ -120,7 +120,7 @@ tt = tt * 10e-3;
 % hold off
 d1 = patternArray;
 d2 = ones(1, numel(patternArray)) * 1234;;
-d3 = tt;
+d3 = tt - abs(min(ppg_time));
 d4 = ones(1,numel(patternArray));
 dsf = numel(g.acq) / numel(patternArray);
 ind = round(linspace(1,numel(g.acq),numel(patternArray)));
@@ -148,4 +148,8 @@ fclose(fid);
 p = load_gating('NewGating.full');
 r = load_gating('Gating_Track_154541551.pcvipr_track.full');
 
-
+figure
+hold on
+plot(ppg_time,ppg_vals)
+plot(p.time,p.ecg)
+hold off
