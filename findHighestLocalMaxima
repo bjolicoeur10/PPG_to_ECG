@@ -1,0 +1,18 @@
+function highestLocalMaxima = findHighestLocalMaxima(arr, threshold)
+    highestLocalMaxima = [];  
+
+    max_value = -Inf;  
+
+    for i = 1:length(arr)
+        if arr(i) >= threshold
+  
+            if arr(i) > max_value
+                max_value = arr(i);
+                max_index = i;
+            end
+        elseif max_value > -Inf
+            highestLocalMaxima = [highestLocalMaxima; max_value, max_index];
+            max_value = -Inf;  
+        end
+    end
+end
