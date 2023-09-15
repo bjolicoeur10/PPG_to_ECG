@@ -1,13 +1,14 @@
-clear
-clc
+clear all
 close all
 format long
 ppg_name = 'PPGData_pcvipr_0908202315_51_55_913'
 ppg_trig_name = 'PPGTrig_pcvipr_0908202315_51_55_913'
 ppg_dt = 10e-3; % 10ms sampling time on ppg
 
+newfilename = 'NewGating.full';
 gating_name = 'Gating_Track_154541551.pcvipr_track.full';
 %gating_name = 'modifiedgatingfiel.full';
+%gating_name = newfilename;
 out_gating_name = 'modifiedgatingfiel.full';
 %7688
 % load data
@@ -27,13 +28,6 @@ ppg_vals = textread(ppg_name);
 ppg_time = (0:numel(ppg_vals)-1)*ppg_dt - 30 - pr_disdaqs*effective_tr;
 ppg_trigger = textread(ppg_trig_name);
 % check plot
-figure
-hold on
-plot(g.time,g.ecg)
-plot(ppg_time,ppg_vals)
-hold off
-
-
 
 
 figure
@@ -97,11 +91,11 @@ for v = 1:numel(temppa)
 end
 tt = 1:numel(temppa);
 tt = tt * 10e-3;
-figure
-hold on
-plot(tt,patternArray)
-plot(ppg_time,ppg_vals)
-hold off
+% figure
+% hold on
+% plot(tt,patternArray)
+% plot(ppg_time,ppg_vals)
+% hold off
 % figure
 % plot(1:numel(g.ecg),g.ecg)
 
@@ -116,34 +110,42 @@ for v = 1:numel(temppa)
 end
 tt = 1:numel(temppa);
 tt = tt * 10e-3;
-figure
-hold on
-% 
-plot(ppg_time,patternArray)
-plot(ppg_time,ppg_vals)
-plot(g.time,g.ecg)
-xlim([50 70])
-hold off
-d1 = patternArray * 0.000000001;
+% figure
+% hold on
+% % 
+% plot(ppg_time,patternArray)
+% plot(ppg_time,ppg_vals)
+% plot(g.time,g.ecg)
+% xlim([50 70])
+% hold off
+d1 = patternArray;
 d2 = ones(1, numel(patternArray)) * 1234;;
-d3 = tt * 10e6;
+d3 = tt;
 d4 = ones(1,numel(patternArray));
 dsf = numel(g.acq) / numel(patternArray);
 ind = round(linspace(1,numel(g.acq),numel(patternArray)));
 sm = g.acq(ind);
-d5 = sm' ;
+d5 = sm';
 raw2 = [d1,d2,d3,d4,d5]';
 
-fid = fopen(out_gating_name, 'wb');
-fwrite(fid, raw2, 'int32', 'l');
+
+fid = fopen('NewGating.full','w');
+fwrite(fid, d1,'int32','b');
+fwrite(fid, -(d2-4095),'int32','b');
+fwrite(fid, d3*1e6,'int32','b');
+fwrite(fid, d4,'int32','b');
+fwrite(fid, d5,'int32','b');
 fclose(fid);
-fid = fopen(out_gating_name, 'rb');
-raw3 = fread(fid, inf, 'int32', 'l');
-fclose(fid);
 
+% fid = fopen('NewGating.full');
+% raw = fread(fid, 'int32', 'b');
+% fclose(fid);
 
+% fid = fopen('Gating_Track_154541551.pcvipr_track.full');
+% rawr = fread(fid, 'int32', 'b');
+% fclose(fid);
 
-   fid = fopen(gating_name);
-    raw = fread(fid,'int32','b');
-    fclose(fid);
+p = load_gating('NewGating.full');
+r = load_gating('Gating_Track_154541551.pcvipr_track.full');
+
 
