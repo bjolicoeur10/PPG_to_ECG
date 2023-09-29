@@ -3,153 +3,87 @@ close all
 format long
 ppg_name = 'PPGData_pcvipr_0908202315_51_55_913'
 ppg_trig_name = 'PPGTrig_pcvipr_0908202315_51_55_913'
-ppg_dt = 10e-3; % 10ms sampling time on ppg
-
-newfilename = 'NewGating.full';
-gating_name = 'Gating_Track_154541551.pcvipr_track.full';
-%gating_name = 'modifiedgatingfiel.full';
-%gating_name = newfilename;
-out_gating_name = 'modifiedgatingfiel.full';
-%7688
-% load data
-g_tr = 7688e-6 - 3e-6; % tr from  pfile_info ScanArchive_*.h5 print | grep -a imagehead.tr=
+gating_name = 'Gating_Track_154541551.pcvipr_track_real.full';
+new_file_name = 'NewGating.full';
+r = load_gating(gating_name);
 g = load_gating(gating_name);
 g_time_old = g.time;
+g_tr = 7688e-6 - 3e-6;
 g.time = (0:numel(g.time)-1)*g_tr;
-%g.time = g.time * 0.9994657
-
-
 disdaq_time = 1;
 effective_tr = 4*g_tr;
 pr_disdaqs = 1 + round(disdaq_time / effective_tr);
-
-% 30s time, 1s disdaq
+ppg_dt = 10e-3;
 ppg_vals = textread(ppg_name);
 ppg_time = (0:numel(ppg_vals)-1)*ppg_dt - 30 - pr_disdaqs*effective_tr;
 ppg_trigger = textread(ppg_trig_name);
-% check plot
+ppgtt = ppg_time(ppg_trigger);
+slope = 1000;
+
+% Custom stop time
+
+stop_time = max(r.time); %max(r.time)
 
 
-figure
-yyaxis left
-plot(g.time, g.ecg)
-yyaxis right
-plot(ppg_time, ppg_vals)
-hold on
-plot(ppg_time(ppg_trigger), ppg_vals(ppg_trigger),'*')
-xlim([0 10])
-title('Start of scan')
+desired_length = numel(r.time); %numel(r.time)
 
-% check plot
-figure
-yyaxis left
-plot(g.time, g.ecg)
-yyaxis right
-plot(ppg_time, ppg_vals)
-hold on
-plot(ppg_time(ppg_trigger), ppg_vals(ppg_trigger),'*')
-xlim([max(g.time)-10 max(g.time)])
-title('End of scan')
+time_step = stop_time / (desired_length - 1);
 
-%figure:
+ecg_array_time = linspace(0, stop_time, desired_length);
+ecg_array = zeros(1, desired_length);
 
+current_time = 0;
+current_value = 644; % a non zero start time
+reset_flag = false;
 
-% Find index greater than zero 
-idx_zero = find(ppg_time>0, 1, 'First')
-ppg_trigger_zero = ppg_trigger( ppg_trigger > idx_zero);
+for t = 1:numel(ecg_array)
+    current_value = current_value + slope * time_step;
+    current_time = current_time + time_step;
 
-% Fit triggers from gating file vs ppg file
-[c, idx] = findpeaks(g.ecg);
-fit = fitlm(g.time(idx),ppg_time(ppg_trigger_zero(1:numel(g.time(idx)))))
+    if any(abs(current_time - ppgtt) < time_step)
+        if ~reset_flag
+            current_value = 0;
+            reset_flag = true;
+        end
+    else
+        reset_flag = false;
+    end
 
-% Estimate time offset between 2 sets (should be slope 1, offset 0)
-slope = fit.Coefficients.Estimate(2)
-tr_offset = (1-slope)*g_tr
-
-tdelay = fit.Coefficients.Estimate(1)
-
-% numppg = 1:numel(ppg_vals);
-% tm = 5000;
-% figure
-% hold on
-% plot(g.time(1:tm),g.ecg(1:tm))
-% plot(ppg_time(1:tm),ppg_vals(1:tm))
-% hold off
-
-
-
-arr = ppg_vals;
-threshold = 450;
-result = findHighestLocalMaxima(arr, threshold);
-patternArray = createPatternArray(result, arr);
-% 
-temppa = patternArray;
-for v = 1:numel(temppa)
-    if temppa(v) < 200
-        temppa(v) = 200;
+    ecg_array(t) = current_value;
+    
+    if current_time >= stop_time
+        break;
     end
 end
-tt = 1:numel(temppa);
-tt = tt * 10e-3;
-% figure
-% hold on
-% plot(tt,patternArray)
-% plot(ppg_time,ppg_vals)
-% hold off
-% figure
-% plot(1:numel(g.ecg),g.ecg)
 
+ecg_array_time = ecg_array_time +0.03;
+ecg_array = ecg_array + 200;
 
+%plotting
+figure
+hold on
+% plot(output_array_time, output_array);
+plot(r.time,ecg_array)
+%plot(r.time,r.ecg)
+plot(g.time, r.ecg);
+plot(ppg_time(ppg_trigger), ppg_vals(ppg_trigger), '*')
+xlim([0 10]) 
+xlabel('Time');
+ylabel('Value');
 
-
-
-for v = 1:numel(temppa)
-    if temppa(v) < 200
-        temppa(v) = 200;
-    end
-end
-tt = 1:numel(temppa);
-tt = tt * 10e-3;
-% figure
-% hold on
-% % 
-% plot(ppg_time,patternArray)
-% plot(ppg_time,ppg_vals)
-% plot(g.time,g.ecg)
-% xlim([50 70])
-% hold off
-d1 = patternArray;
-d2 = ones(1, numel(patternArray)) * 1234;;
-d3 = tt - abs(min(ppg_time));
-d4 = ones(1,numel(patternArray));
-dsf = numel(g.acq) / numel(patternArray);
-ind = round(linspace(1,numel(g.acq),numel(patternArray)));
-sm = g.acq(ind);
-d5 = sm';
-raw2 = [d1,d2,d3,d4,d5]';
-
+d1 = ecg_array;
+d2 = 4095 - r.resp;
+d3 = r.time * 1e6;
+d4 = r.prep;
+d5 = r.acq;
 
 fid = fopen('NewGating.full','w');
 fwrite(fid, d1,'int32','b');
-fwrite(fid, -(d2-4095),'int32','b');
-fwrite(fid, d3*1e6,'int32','b');
+fwrite(fid, d2,'int32','b');
+fwrite(fid, d3,'int32','b');
 fwrite(fid, d4,'int32','b');
 fwrite(fid, d5,'int32','b');
 fclose(fid);
 
-% fid = fopen('NewGating.full');
-% raw = fread(fid, 'int32', 'b');
-% fclose(fid);
+p = load_gating(new_file_name);
 
-% fid = fopen('Gating_Track_154541551.pcvipr_track.full');
-% rawr = fread(fid, 'int32', 'b');
-% fclose(fid);
-
-p = load_gating('NewGating.full');
-r = load_gating('Gating_Track_154541551.pcvipr_track.full');
-
-figure
-hold on
-plot(ppg_time,ppg_vals)
-plot(p.time,p.ecg)
-hold off
